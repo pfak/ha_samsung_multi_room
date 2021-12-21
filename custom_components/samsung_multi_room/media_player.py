@@ -38,19 +38,16 @@ from homeassistant.components.media_player.const import (
 from homeassistant.const import (
   CONF_NAME,
   CONF_HOST,
-  STATE_IDLE,
-  STATE_PLAYING,
+  STATE_ON,
   STATE_OFF
 )
 
 MULTI_ROOM_SOURCE_TYPE = [
-  'optical',
-  'soundshare',
-  'hdmi',
+  'hdmi1',
+  'hdmi2',
   'wifi',
-  'aux',
   'bt',
-  'wifi - TuneIn'
+  'optical',
   #wifi - submode: dlna, cp
 ]
 
@@ -272,11 +269,12 @@ class MultiRoomDevice(MediaPlayerEntity):
     await self.api.set_source(source)
     self._current_source = source
 
-  async def turn_off(self):
+  async def async_turn_off(self):
       """Turn the media player off."""
+
       await self.api.set_state(0)
 
-  async def turn_on(self):
+  async def async_turn_on(self):
       """Turn the media player on."""
       await self.api.set_state(1)
 
@@ -291,7 +289,7 @@ class MultiRoomDevice(MediaPlayerEntity):
       _LOGGER.debug(state)
       if state and int(state) == 1:
         "If Power is ON, update other values"
-        self._state = STATE_PLAYING
+        self._state = STATE_ON
         "Get Current Source"
         source = await self.api.get_source()
         "Source 0 is type on input"
@@ -332,7 +330,7 @@ class MultiRoomDevice(MediaPlayerEntity):
       source = await self.api.get_source()
       if source:
         self._current_source = source[0]
-        self._state = STATE_PLAYING
+        self._state = STATE_ON
       else:
         self._state = STATE_OFF
       "Get Volume"
