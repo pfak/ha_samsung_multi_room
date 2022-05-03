@@ -80,13 +80,13 @@ class MultiRoomApi():
     self.port = port
     self.endpoint = 'http://{0}:{1}'.format(ip, port)
 
-  async def _exec_cmd(self, mode ,cmd, key_to_extract):
+  async def _exec_cmd(self, mode ,cmd, key_to_extract, timeout=TIMEOUT):
     import xmltodict
     query = urllib.parse.urlencode({ "cmd": cmd }, quote_via=urllib.parse.quote)
     url = '{0}/{1}?{2}'.format(self.endpoint, mode, query)
 
     try:
-      with async_timeout.timeout(TIMEOUT):
+      with async_timeout.timeout(timeout):
         _LOGGER.debug("Executing: {} with cmd: {}".format(url, cmd))
         response = await self.session.get(url)
         data = await response.text()
@@ -98,8 +98,8 @@ class MultiRoomApi():
       _LOGGER.debug("exception")
       return None
 
-  async def _exec_get(self, mode, action, key_to_extract):
-    return await self._exec_cmd(mode, '<name>{0}</name>'.format(action), key_to_extract)
+  async def _exec_get(self, mode, action, key_to_extract, timeout=TIMEOUT):
+    return await self._exec_cmd(mode, '<name>{0}</name>'.format(action), key_to_extract, timeout)
 
   async def _exec_set(self, mode, action, property_name, value):
     if type(value) is str:
@@ -156,7 +156,8 @@ class MultiRoomApi():
   async def get_source(self):
     "res[0] = source ; res[1] = mode"
     res = []
-    result = await self._exec_get('UIC','GetFunc', '<response result="ok">(.*?)</response>')
+    # GetFunc will timeout and return no data when External Device is the source
+    result = await self._exec_get('UIC','GetFunc', '<response result="ok">(.*?)</response>', 2)
     if result:
       function = re.findall('<function>(.*?)</function>',result[0])[0]
       res.append(function)
@@ -293,13 +294,15 @@ class MultiRoomDevice(MediaPlayerEntity):
         "Get Current Source"
         source = await self.api.get_source()
         "Source 0 is type on input"
-        if source[0]:
-          self._current_source = source[0]
-        "Source 1 is input mode"
-        if source[1]:
-          self._mode = source[1]
-        else:
-          self._mode = ''
+        if source:
+          if source[0]:
+            self._current_source = source[0]
+          "Source 1 is input mode"
+          if source[1]:
+            self._mode = source[1]
+          else:
+            self._mode = ''
+
         "Get Volume"
         volume = await self.api.get_volume()
         if volume[0]:
